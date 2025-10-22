@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+
+
+# OS & tooling
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+
+# Byte-compiled / caches
+.pytest_cache/
+.mypy_cache/
+
+
+# Project artifacts
+app/static/audio/
+*.log
+
+
+# Build & dist
+build/
+dist/
+*.tar.gz
+*.whl

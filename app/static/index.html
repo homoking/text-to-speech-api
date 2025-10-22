@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Text-to-Speech API</title>
+
+    <!-- Tailwind via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Favicon (inline, no 404) -->
+    <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><rect width="128" height="128" rx="24" fill="%231f2937"/><text x="64" y="78" font-size="64" text-anchor="middle" fill="white" font-family="Arial, Helvetica, sans-serif">🔊</text></svg>'>
+
+    <!-- Minimal additional CSS -->
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-800">
+    <!-- Top Bar -->
+    <header class="border-b bg-white/80 backdrop-blur">
+      <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="h-8 w-8 grid place-items-center rounded-xl bg-indigo-600 text-white">T</div>
+          <h1 class="text-lg font-semibold tracking-tight">Text-to-Speech API</h1>
+        </div>
+        <nav class="text-sm text-slate-500">
+          <a class="hover:text-slate-700 underline decoration-dotted" href="#" onclick="window.location.reload()">Refresh</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Main -->
+    <main class="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      <!-- Controls -->
+      <section class="bg-white rounded-2xl shadow p-4 md:p-6">
+        <div class="flex items-start justify-between mb-4">
+          <h2 class="text-lg font-semibold">Synthesize Speech</h2>
+          <span id="status" class="text-sm text-slate-500"></span>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4">
+          <!-- Text -->
+          <div>
+            <label for="text" class="block text-sm font-medium mb-1">Text</label>
+            <textarea id="text" rows="4" class="w-full resize-none rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 px-3 py-2" placeholder="Type your text here..."></textarea>
+            <div class="mt-1 flex items-center justify-between text-xs text-slate-500">
+              <span id="charCounter">0 / 3000</span>
+              <label class="inline-flex items-center gap-2 cursor-pointer">
+                <input id="ssml" type="checkbox" class="rounded border-slate-300" />
+                <span>SSML mode</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Engine / Voice / Format -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label for="engine" class="block text-sm font-medium mb-1">Engine</label>
+              <select id="engine" class="w-full rounded-xl border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="pyttsx3">pyttsx3 (offline)</option>
+                <option value="edge">edge (natural)</option>
+              </select>
+              <p class="text-xs text-slate-500 mt-1">edge uses online voices(unavailable for now); pyttsx3 works offline.</p>
+            </div>
+            <div>
+              <label for="voice" class="block text-sm font-medium mb-1">Voice</label>
+              <select id="voice" class="w-full rounded-xl border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">Loading…</option>
+              </select>
+              <p id="voiceHelp" class="text-xs text-slate-500 mt-1 hidden"></p>
+            </div>
+            <div>
+              <label for="format" class="block text-sm font-medium mb-1">Format</label>
+              <select id="format" class="w-full rounded-xl border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="mp3">mp3 (default)</option>
+                <option value="ogg">ogg</option>
+                <option value="wav">wav</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Rate / Pitch -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div class="flex items-center justify-between">
+                <label for="rate" class="block text-sm font-medium mb-1">Rate (%)</label>
+                <span id="rateVal" class="text-xs text-slate-500">0%</span>
+              </div>
+              <input id="rate" type="range" min="-50" max="50" step="1" value="0" class="w-full accent-indigo-600" />
+            </div>
+            <div>
+              <div class="flex items-center justify-between">
+                <label for="pitch" class="block text-sm font-medium mb-1">Pitch (semitones)</label>
+                <span id="pitchVal" class="text-xs text-slate-500">0</span>
+              </div>
+              <input id="pitch" type="range" min="-12" max="12" step="1" value="0" class="w-full accent-indigo-600" />
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex items-center gap-3">
+            <button id="generateBtn" class="btn-primary">
+              <span class="inline-flex items-center gap-2">
+                <svg id="spinner" class="hidden animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4A4 4 0 004 12z"></path>
+                </svg>
+                <span>Generate</span>
+              </span>
+            </button>
+            <button id="clearBtn" class="btn-secondary">Clear</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Output -->
+      <section class="bg-white rounded-2xl shadow p-4 md:p-6">
+        <h2 class="text-lg font-semibold mb-4">Output</h2>
+        <div class="space-y-3">
+          <audio id="player" controls class="w-full" preload="none"></audio>
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="copyBtn" class="btn-secondary">Copy URL</button>
+            <a id="downloadLink" href="#" download class="btn-secondary hidden">Download</a>
+            <span id="info" class="text-sm text-slate-500"></span>
+          </div>
+        </div>
+      </section>
+
+            <!-- replace the existing <footer> ... </footer> with this -->
+        <footer class="border-t bg-white/80 backdrop-blur mt-6">
+        <div class="max-w-5xl mx-auto px-4 py-4 text-center text-sm text-slate-600">
+            <p>
+              Built and developed by
+            <strong>Hossein Mohammadi Kia ❤</strong>
+            —
+            <a
+                href="https://github.com/homoking"
+                target="_blank"
+                rel="noopener"
+                class="text-indigo-600 hover:text-indigo-700 underline decoration-dotted"
+                >github.com/Hossein Mohammadi Kia</a
+            >
+            </p>
+        </div>
+        </footer>
+
+    </main>
+
+    <!-- Toast -->
+    <div id="toast" class="toast hidden"></div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
