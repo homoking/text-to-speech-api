@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 import pyttsx3  # type: ignore
+from functools import lru_cache
 
 from ..core.logger import get_logger
 from ..core.utils import (
@@ -28,12 +29,21 @@ class Pyttsx3Engine:
     name = "pyttsx3"
 
     def __init__(self) -> None:
-        self._engine = None  # lazy init
+        self._engine = None
+        self._available: bool | None = None  # None=unknown, True/False cached
 
     # ---- internals ----
     def _ensure_engine(self):
+        if self._available is False:
+            raise RuntimeError("pyttsx3 unavailable")
         if self._engine is None:
-            self._engine = pyttsx3.init()
+            try:
+                self._engine = pyttsx3.init()
+                self._available = True
+            except Exception as e:
+                self._available = False
+                log.error(f"pyttsx3 init failed (likely missing espeak-ng): {e}")
+                raise RuntimeError("pyttsx3 unavailable") from e
 
     def _list_voices_sync(self) -> List[Dict[str, Any]]:
         self._ensure_engine()
@@ -91,7 +101,11 @@ class Pyttsx3Engine:
     # ---- public API (async) ----
     async def list_voices(self) -> List[Dict[str, Any]]:
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, self._list_voices_sync)
+        try:
+            return await loop.run_in_executor(None, self._list_voices_sync)
+        except Exception:
+            # engine unavailable on this host
+            return []
 
     async def synthesize(
         self,
@@ -112,8 +126,10 @@ class Pyttsx3Engine:
 
         loop = asyncio.get_running_loop()
         try:
-            # run blocking synthesis off the event loop
             await loop.run_in_executor(None, self._synthesize_sync, text, voice, rate, wav_path)
+        except RuntimeError as e:
+            # bubble up cleanly so router can downgrade response
+            raise
         except Exception as e:
             log.error(f"pyttsx3 synthesis failed: {e}", exc_info=True)
             raise

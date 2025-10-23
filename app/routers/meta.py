@@ -18,16 +18,12 @@ ENGINES: Dict[str, Any] = {
 
 
 @router.get("/voices")
-async def list_voices(
-    engine: Literal["edge", "pyttsx3"] = Query("edge", description="موتور TTS موردنظر"),
-):
+async def list_voices(engine: str = Query("edge")):
     if engine not in ENGINES:
-        raise HTTPException(status_code=400, detail="Unsupported engine.")
+        return {"engine": engine, "available": False, "voices": []}
     voices = await ENGINES[engine].list_voices()
-    return {
-        "engine": engine,
-        "voices": voices,
-    }
+    available = bool(voices) or engine == "edge"  # edge doesn't fail listing usually
+    return {"engine": engine, "available": available, "voices": voices}
 
 
 @router.get("/healthz")
