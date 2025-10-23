@@ -198,12 +198,16 @@ async def tts_endpoint(req: Request, payload: TTSRequest):
         # Auto-fallback to offline pyttsx3
         log.error(f"edge-tts failed with network/handshake error, falling back to pyttsx3: {e}")
         engine_fallback = ENGINES["pyttsx3"]
-        tmp_wav = ck.abs_path if payload.format == "wav" else ck.abs_path.with_suffix(".wav")
-        tmp_wav.parent.mkdir(parents=True, exist_ok=True)
-        await engine_fallback.synthesize(
-            text=text_for_hash if payload.ssml else (normalize_text(payload.text) if payload.normalize else payload.text),
-            voice=payload.voice or "", rate=rate, pitch=pitch, fmt="wav", ssml=payload.ssml, out_path=tmp_wav,
-        )
+        try:
+            tmp_wav = ck.abs_path if payload.format == "wav" else ck.abs_path.with_suffix(".wav")
+            tmp_wav.parent.mkdir(parents=True, exist_ok=True)
+            await engine_fallback.synthesize(
+                text=text_for_hash if payload.ssml else (normalize_text(payload.text) if payload.normalize else payload.text),
+                voice=payload.voice or "", rate=rate, pitch=pitch, fmt="wav", ssml=payload.ssml, out_path=tmp_wav,
+            )
+        except RuntimeError as e2:
+            # pyttsx3 unavailable on this host -> clean 503
+            raise HTTPException(status_code=503, detail="Offline engine (pyttsx3) is not available on this host. Install espeak-ng or switch to edge.") from e2
         final_path = tmp_wav
         if payload.format in {"mp3", "ogg"}:
             if not has_ffmpeg():
